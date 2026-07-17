@@ -1,0 +1,43 @@
+trigger:
+  branches:
+    include:
+      - feature/build-pipeline
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  JAVA_VERSION: '17'
+
+steps:
+
+# Step 1 - Checkout the source code
+- checkout: self
+
+# Step 2 - Install Java 17
+- task: JavaToolInstaller@0
+  displayName: 'Install Java 17'
+  inputs:
+    versionSpec: '$(JAVA_VERSION)'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+# Step 3 - Build the application using Maven
+- task: Maven@4
+  displayName: 'Build Spring PetClinic'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'
+    mavenVersionOption: 'Default'
+
+# Step 4 - Publish the build artifact
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Build Artifact'
+  inputs:
+    PathtoPublish: 'target'
+    ArtifactName: 'petclinic'
+    publishLocation: 'Container'
