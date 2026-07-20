@@ -1,13 +1,16 @@
 trigger:
   branches:
     include:
-      - feature/build-pipeline
+      - feature/sonarqube
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  JAVA_VERSION: '17'
+- group: SONAR-CONFIG
+
+- name: JAVA_VERSION
+  value: '17'
 
 steps:
 
@@ -22,19 +25,36 @@ steps:
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
 
-# Step 3 - Build the application using Maven
+# Step 3 - Prepare SonarQube Cloud Analysis
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare SonarQube Cloud Analysis'
+  inputs:
+    SonarCloud: 'sonarcloud-connection'
+    organization: '$(SONAR_ORG)'
+    scannerMode: 'other'
+    extraProperties: |
+      sonar.projectKey=$(SONAR_PROJECT)
+      sonar.organization=$(SONAR_ORG)
+
+# Step 4 - Build, Test and Analyze
 - task: Maven@4
-  displayName: 'Build Spring PetClinic'
+  displayName: 'Build, Test and Analyze'
   inputs:
     mavenPomFile: 'pom.xml'
-    goals: 'clean package'
+    goals: 'clean verify sonar:sonar'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     javaHomeOption: 'JDKVersion'
     jdkVersionOption: '1.17'
     mavenVersionOption: 'Default'
 
-# Step 4 - Publish the build artifact
+# Step 5 - Publish SonarQube Quality Gate
+- task: SonarCloudPublish@3
+  displayName: 'Publish Quality Gate Result'
+  inputs:
+    pollingTimeoutSec: '300'
+
+# Step 6 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
