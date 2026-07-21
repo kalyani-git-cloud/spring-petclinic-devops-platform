@@ -17,6 +17,10 @@ steps:
 # Step 1 - Checkout the source code
 - checkout: self
 
+- script: |
+    git branch -a
+  displayName: "Show Git Branches"
+
 # Step 2 - Install Java 21
 - task: JavaToolInstaller@0
   displayName: 'Install Java 21'
@@ -29,7 +33,7 @@ steps:
 - task: SonarCloudPrepare@3
   displayName: 'Prepare SonarQube Cloud Analysis'
   inputs:
-    SonarCloud: 'sonarcloud-connection'
+    SonarCloud: 'new-connection'
     organization: '$(SONAR_ORG)'
     scannerMode: 'other'
     extraProperties: |
