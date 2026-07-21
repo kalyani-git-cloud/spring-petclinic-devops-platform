@@ -10,16 +10,16 @@ variables:
 - group: SONAR-CONFIG
 
 - name: JAVA_VERSION
-  value: '17'
+  value: '21'
 
 steps:
 
 # Step 1 - Checkout the source code
 - checkout: self
 
-# Step 2 - Install Java 17
+# Step 2 - Install Java 21
 - task: JavaToolInstaller@0
-  displayName: 'Install Java 17'
+  displayName: 'Install Java 21'
   inputs:
     versionSpec: '$(JAVA_VERSION)'
     jdkArchitectureOption: 'x64'
