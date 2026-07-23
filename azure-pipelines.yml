@@ -17,7 +17,6 @@ steps:
 # Step 1 - Checkout the source code
 - checkout: self
 
-
 # Step 2 - Install Java 21
 - task: JavaToolInstaller@0
   displayName: 'Install Java 21'
@@ -26,9 +25,9 @@ steps:
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
 
-# Step 3 - Prepare SonarQube Cloud Analysis
+# Step 3 - Prepare SonarCloud Analysis
 - task: SonarCloudPrepare@3
-  displayName: 'Prepare SonarQube Cloud Analysis'
+  displayName: 'Prepare SonarCloud Analysis'
   inputs:
     SonarCloud: 'new-connection'
     organization: '$(SONAR_ORG)'
@@ -49,13 +48,20 @@ steps:
     jdkVersionOption: '1.21'
     mavenVersionOption: 'Default'
 
-# Step 5 - Publish SonarQube Quality Gate
+# Step 5 - Publish SonarCloud Quality Gate
 - task: SonarCloudPublish@3
   displayName: 'Publish Quality Gate Result'
   inputs:
     pollingTimeoutSec: '300'
 
-# Step 6 - Publish Build Artifact
+# Step 6 - Mend Dependency Security Scan
+- task: WhiteSource@21
+  displayName: 'Mend Dependency Security Scan'
+  inputs:
+    cwd: '$(System.DefaultWorkingDirectory)'
+    projectName: 'spring-petclinic-devops'
+
+# Step 7 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
