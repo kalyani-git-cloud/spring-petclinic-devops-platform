@@ -11,6 +11,18 @@ variables:
 
 - name: JAVA_VERSION
   value: '21'
+<<<<<<< HEAD
+=======
+
+- name: imageRepository
+  value: 'spring-petclinic'
+
+- name: dockerfilePath
+  value: 'Dockerfile'
+
+- name: imageTag
+  value: '$(Build.BuildId)'
+>>>>>>> 3cfa9c94 (Add Docker containerization and ACR integration)
 
 steps:
 
@@ -50,7 +62,7 @@ steps:
 
 # Step 5 - Publish SonarCloud Quality Gate
 - task: SonarCloudPublish@3
-  displayName: 'Publish Quality Gate Result'
+  displayName: 'Publish SonarCloud Quality Gate'
   inputs:
     pollingTimeoutSec: '300'
 
@@ -68,3 +80,15 @@ steps:
     PathtoPublish: 'target'
     ArtifactName: 'petclinic'
     publishLocation: 'Container'
+
+# Step 8 - Build and Push Docker Image
+- task: Docker@2
+  displayName: 'Build and Push Docker Image'
+  inputs:
+    command: 'buildAndPush'
+    containerRegistry: 'acr-service-connection'
+    repository: '$(imageRepository)'
+    Dockerfile: '$(dockerfilePath)'
+    tags: |
+      $(imageTag)
+      latest
