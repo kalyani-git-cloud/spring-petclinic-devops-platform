@@ -93,8 +93,15 @@ steps:
 
 # Step 9 - Save Docker Image
 - script: |
+    echo "Available Images:"
     docker images
-    docker save $(imageRepository):$(imageTag) -o spring-petclinic.tar
+
+    IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
+
+    echo "Detected Image: $IMAGE_NAME"
+
+    docker save "$IMAGE_NAME" -o spring-petclinic.tar
+
     ls -lh spring-petclinic.tar
   displayName: 'Save Docker Image'
 
