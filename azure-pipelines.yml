@@ -64,11 +64,11 @@ steps:
     pollingTimeoutSec: '300'
 
 # Step 6 - Mend Dependency Security Scan
-- task: WhiteSource@21
-  displayName: 'Mend Dependency Security Scan'
-  inputs:
-    cwd: '$(System.DefaultWorkingDirectory)'
-    projectName: 'spring-petclinic-devops'
+#- task: WhiteSource@21
+#  displayName: 'Mend Dependency Security Scan'
+#  inputs:
+#    cwd: '$(System.DefaultWorkingDirectory)'
+#    projectName: 'spring-petclinic-devops'
 
 # Step 7 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
