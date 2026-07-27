@@ -50,7 +50,7 @@ steps:
   displayName: 'Build, Test and Analyze'
   inputs:
     mavenPomFile: 'pom.xml'
-    goals: 'clean verify sonar:sonar'
+    goals: 'clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     javaHomeOption: 'JDKVersion'
