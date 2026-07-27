@@ -23,7 +23,7 @@ variables:
 
 steps:
 
-# Step 1 - Checkout the source code
+# Step 1 - Checkout Source Code
 - checkout: self
 
 # Step 2 - Install Java 21
@@ -63,14 +63,7 @@ steps:
   inputs:
     pollingTimeoutSec: '300'
 
-# Step 6 - Mend Dependency Security Scan
-#- task: WhiteSource@21
-#  displayName: 'Mend Dependency Security Scan'
-#  inputs:
-#    cwd: '$(System.DefaultWorkingDirectory)'
-#    projectName: 'spring-petclinic-devops'
-
-# Step 7 - Publish Build Artifact
+# Step 6 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
@@ -78,14 +71,34 @@ steps:
     ArtifactName: 'petclinic'
     publishLocation: 'Container'
 
-# Step 8 - Build and Push Docker Image
+# Step 7 - Build Docker Image
 - task: Docker@2
-  displayName: Build and Push Docker Image
+  displayName: 'Build Docker Image'
   inputs:
-    command: buildAndPush
+    command: build
     containerRegistry: 'acr-docker-connection'
     repository: '$(imageRepository)'
     Dockerfile: '$(dockerfilePath)'
+    tags: |
+      $(imageTag)
+      latest
+
+# Step 8 - Install Trivy
+- script: |
+    sudo apt-get update
+    sudo apt-get install -y wget
+    wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.66.0_Linux-64bit.deb
+    sudo dpkg -i trivy_0.66.0_Linux-64bit.deb
+    trivy --version
+  displayName: 'Install Trivy'
+
+# Step 9 - Push Docker Image to ACR
+- task: Docker@2
+  displayName: 'Push Docker Image'
+  inputs:
+    command: push
+    containerRegistry: 'acr-docker-connection'
+    repository: '$(imageRepository)'
     tags: |
       $(imageTag)
       latest
