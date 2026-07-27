@@ -1,43 +1,91 @@
 trigger:
   branches:
     include:
-      - feature/build-pipeline
+      - feature/sonarqube
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  JAVA_VERSION: '17'
+- group: SONAR-CONFIG
+
+- name: JAVA_VERSION
+  value: '21'
+
+- name: imageRepository
+  value: 'spring-petclinic'
+
+- name: dockerfilePath
+  value: 'Dockerfile'
+
+- name: imageTag
+  value: '$(Build.BuildId)'
 
 steps:
 
 # Step 1 - Checkout the source code
 - checkout: self
 
-# Step 2 - Install Java 17
+# Step 2 - Install Java 21
 - task: JavaToolInstaller@0
-  displayName: 'Install Java 17'
+  displayName: 'Install Java 21'
   inputs:
     versionSpec: '$(JAVA_VERSION)'
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
 
-# Step 3 - Build the application using Maven
+# Step 3 - Prepare SonarCloud Analysis
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare SonarCloud Analysis'
+  inputs:
+    SonarCloud: 'new-connection'
+    organization: '$(SONAR_ORG)'
+    scannerMode: 'other'
+    extraProperties: |
+      sonar.projectKey=$(SONAR_PROJECT)
+      sonar.organization=$(SONAR_ORG)
+
+# Step 4 - Build, Test and Analyze
 - task: Maven@4
-  displayName: 'Build Spring PetClinic'
+  displayName: 'Build, Test and Analyze'
   inputs:
     mavenPomFile: 'pom.xml'
-    goals: 'clean package'
+    goals: 'clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.17'
+    jdkVersionOption: '1.21'
     mavenVersionOption: 'Default'
 
-# Step 4 - Publish the build artifact
+# Step 5 - Publish SonarCloud Quality Gate
+- task: SonarCloudPublish@3
+  displayName: 'Publish SonarCloud Quality Gate'
+  inputs:
+    pollingTimeoutSec: '300'
+
+# Step 6 - Mend Dependency Security Scan
+#- task: WhiteSource@21
+#  displayName: 'Mend Dependency Security Scan'
+#  inputs:
+#    cwd: '$(System.DefaultWorkingDirectory)'
+#    projectName: 'spring-petclinic-devops'
+
+# Step 7 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
     PathtoPublish: 'target'
     ArtifactName: 'petclinic'
     publishLocation: 'Container'
+
+# Step 8 - Build and Push Docker Image
+- task: Docker@2
+  displayName: Build and Push Docker Image
+  inputs:
+    command: buildAndPush
+    containerRegistry: 'acr-docker-connection'
+    repository: '$(imageRepository)'
+    Dockerfile: '$(dockerfilePath)'
+    tags: |
+      $(imageTag)
+      latest
