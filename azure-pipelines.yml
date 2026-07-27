@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - develop
+      - feature/sonarqube
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -11,8 +11,6 @@ variables:
 
 - name: JAVA_VERSION
   value: '21'
-<<<<<<< HEAD
-=======
 
 - name: imageRepository
   value: 'spring-petclinic'
@@ -22,7 +20,6 @@ variables:
 
 - name: imageTag
   value: '$(Build.BuildId)'
->>>>>>> 3cfa9c94 (Add Docker containerization and ACR integration)
 
 steps:
 
