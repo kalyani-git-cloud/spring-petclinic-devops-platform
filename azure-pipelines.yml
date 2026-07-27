@@ -91,7 +91,19 @@ steps:
     trivy --version
   displayName: 'Install Trivy'
 
-# Step 9 - Push Docker Image to ACR
+# Step 9 - Scan Docker Image
+- script: |
+    echo "Available Docker Images:"
+    docker images
+
+    echo "Scanning Image..."
+    trivy image \
+      --exit-code 1 \
+      --severity HIGH,CRITICAL \
+      $(imageRepository):$(imageTag)
+  displayName: 'Scan Docker Image'
+
+# Step 10 - Push Docker Image to ACR
 - task: Docker@2
   displayName: 'Push Docker Image'
   inputs:
