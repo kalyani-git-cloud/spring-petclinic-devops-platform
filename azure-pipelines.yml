@@ -15,6 +15,12 @@ variables:
 - name: imageRepository
   value: 'spring-petclinic'
 
+- name: acrLoginServer
+  value: 'acrkalyani.azurecr.io'
+
+- name: fullImageName
+  value: '$(acrLoginServer)/$(imageRepository)'
+
 - name: dockerfilePath
   value: 'Dockerfile'
 
@@ -77,7 +83,7 @@ steps:
   inputs:
     command: build
     containerRegistry: 'acr-docker-connection'
-    repository: '$(imageRepository)'
+    repository: '$(fullImageName)'
     Dockerfile: '$(dockerfilePath)'
     tags: |
       $(imageTag)
@@ -96,11 +102,11 @@ steps:
     echo "Available Docker Images:"
     docker images
 
-    echo "Scanning Image..."
+    echo "Scanning Docker Image..."
     trivy image \
       --exit-code 1 \
       --severity HIGH,CRITICAL \
-      $(imageRepository):$(imageTag)
+      $(fullImageName):$(imageTag)
   displayName: 'Scan Docker Image'
 
 # Step 10 - Push Docker Image to ACR
@@ -109,7 +115,7 @@ steps:
   inputs:
     command: push
     containerRegistry: 'acr-docker-connection'
-    repository: '$(imageRepository)'
+    repository: '$(fullImageName)'
     tags: |
       $(imageTag)
       latest
