@@ -153,16 +153,6 @@ stages:
 
           - checkout: self
 
-          # Create Namespace
-          - task: KubernetesManifest@1
-            displayName: 'Create Namespace'
-            inputs:
-              action: deploy
-              kubernetesServiceConnection: 'aks-kubernetes-connection'
-              namespace: default
-              manifests: |
-                k8s/namespace.yaml
-
           # Deploy Application
           - task: KubernetesManifest@1
             displayName: 'Deploy PetClinic Resources'
