@@ -21,11 +21,8 @@ spec:
 
     spec:
       containers:
-
       - name: petclinic
-
         image: acrkalyani.azurecr.io/spring-petclinic:latest
-
         imagePullPolicy: Always
 
         ports:
@@ -37,6 +34,24 @@ spec:
             configMapKeyRef:
               name: petclinic-config
               key: SPRING_PROFILES_ACTIVE
+
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_DATASOURCE_URL
+
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_USERNAME
+
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_PASSWORD
 
         livenessProbe:
           httpGet:
