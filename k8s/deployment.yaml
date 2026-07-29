@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: petclinic
+  namespace: petclinic
+  labels:
+    app: petclinic
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: petclinic
+
+  template:
+    metadata:
+      labels:
+        app: petclinic
+
+    spec:
+      containers:
+
+      - name: petclinic
+
+        image: acrkalyani.azurecr.io/spring-petclinic:latest
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8080
+
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_PROFILES_ACTIVE
+
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
