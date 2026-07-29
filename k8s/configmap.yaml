@@ -6,3 +6,4 @@ metadata:
 
 data:
   SPRING_PROFILES_ACTIVE: postgres
+  SPRING_DATASOURCE_URL: jdbc:postgresql://demo-db:5432/petclinic
