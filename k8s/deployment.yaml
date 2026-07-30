@@ -53,16 +53,20 @@ spec:
               name: petclinic-secret
               key: SPRING_DATASOURCE_PASSWORD
 
-        livenessProbe:
-          httpGet:
-            path: /livez
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 10
-
         readinessProbe:
           httpGet:
-            path: /readyz
+            path: /actuator/health
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
