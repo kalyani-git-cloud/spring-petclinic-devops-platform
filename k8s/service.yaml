@@ -8,7 +8,7 @@ metadata:
 
 spec:
 
-  type: NodePort
+  type: LoadBalancer
 
   selector:
     app: petclinic
