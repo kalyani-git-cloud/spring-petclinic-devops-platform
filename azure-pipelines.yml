@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - feature/aks-deployment
+      - feature/helm
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -47,7 +47,10 @@ stages:
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
 
+    #=====================================================
     # SonarCloud (Temporarily Disabled)
+    #=====================================================
+
     # - task: SonarCloudPrepare@3
     #   displayName: 'Prepare SonarCloud Analysis'
     #   inputs:
@@ -58,7 +61,7 @@ stages:
     #       sonar.projectKey=$(SONAR_PROJECT)
     #       sonar.organization=$(SONAR_ORG)
 
-    # Build and Test
+    # Build & Test
     - task: Maven@4
       displayName: 'Build and Test'
       inputs:
@@ -70,13 +73,15 @@ stages:
         jdkVersionOption: '1.21'
         mavenVersionOption: 'Default'
 
-    # SonarCloud Publish (Temporarily Disabled)
     # - task: SonarCloudPublish@3
     #   displayName: 'Publish SonarCloud Quality Gate'
     #   inputs:
     #     pollingTimeoutSec: '300'
 
+    #=====================================================
     # Publish Build Artifact
+    #=====================================================
+
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifact'
       inputs:
@@ -84,7 +89,10 @@ stages:
         ArtifactName: 'petclinic'
         publishLocation: 'Container'
 
+    #=====================================================
     # Build Docker Image
+    #=====================================================
+
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
@@ -96,7 +104,10 @@ stages:
           $(imageTag)
           latest
 
+    #=====================================================
     # Install Trivy
+    #=====================================================
+
     - script: |
         sudo apt-get update
         sudo apt-get install -y wget
@@ -104,7 +115,10 @@ stages:
         trivy --version
       displayName: 'Install Trivy'
 
+    #=====================================================
     # Save Docker Image
+    #=====================================================
+
     - script: |
         IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
 
@@ -113,7 +127,10 @@ stages:
         docker save "$IMAGE_NAME" -o spring-petclinic.tar
       displayName: 'Save Docker Image'
 
+    #=====================================================
     # Scan Docker Image
+    #=====================================================
+
     - script: |
         trivy image \
           --input spring-petclinic.tar \
@@ -121,7 +138,10 @@ stages:
           --severity HIGH,CRITICAL
       displayName: 'Scan Docker Image'
 
+    #=====================================================
     # Push Docker Image
+    #=====================================================
+
     - task: Docker@2
       displayName: 'Push Docker Image'
       inputs:
@@ -133,15 +153,16 @@ stages:
           latest
 
 #=====================================================
-# Stage 2 - Deploy to AKS
+# Stage 2 - Validate Helm & Deploy to AKS
 #=====================================================
 
 - stage: Deploy
-  displayName: 'Deploy to AKS'
+  displayName: 'Validate Helm and Deploy to AKS'
   dependsOn: Build
   condition: succeeded()
 
   jobs:
+
   - deployment: DeployAKS
     displayName: 'Deploy PetClinic'
     environment: 'aks'
@@ -153,13 +174,41 @@ stages:
 
           - checkout: self
 
-          # Deploy Application
+          #=====================================================
+          # Install Helm
+          #=====================================================
+
+          - task: HelmInstaller@1
+            displayName: 'Install Helm'
+            inputs:
+              helmVersionToInstall: 'latest'
+
+          #=====================================================
+          # Validate Helm Chart
+          #=====================================================
+
+          - script: |
+              helm lint petclinic-chart
+            displayName: 'Helm Lint'
+
+          #=====================================================
+          # Render Helm Templates
+          #=====================================================
+
+          - script: |
+              helm template petclinic petclinic-chart
+            displayName: 'Helm Template'
+
+          #=====================================================
+          # Deploy using Kubernetes Manifests
+          #=====================================================
+
           - task: KubernetesManifest@1
             displayName: 'Deploy PetClinic Resources'
             inputs:
               action: deploy
               kubernetesServiceConnection: 'aks-kubernetes-connection'
-              namespace: petclinic
+              namespace: 'petclinic'
               manifests: |
                 k8s/configmap.yaml
                 k8s/secret.yaml
