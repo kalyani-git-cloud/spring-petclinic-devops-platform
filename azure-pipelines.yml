@@ -79,7 +79,7 @@ stages:
     #     pollingTimeoutSec: '300'
 
     #=====================================================
-    # Publish Artifact
+    # Publish Build Artifact
     #=====================================================
 
     - task: PublishBuildArtifacts@1
@@ -153,18 +153,18 @@ stages:
           latest
 
 #=====================================================
-# Stage 2 - Deploy to AKS using Helm
+# Stage 2 - Validate Helm & Deploy to AKS
 #=====================================================
 
 - stage: Deploy
-  displayName: 'Deploy to AKS'
+  displayName: 'Validate Helm and Deploy to AKS'
   dependsOn: Build
   condition: succeeded()
 
   jobs:
 
   - deployment: DeployAKS
-    displayName: 'Deploy PetClinic using Helm'
+    displayName: 'Deploy PetClinic'
     environment: 'aks'
 
     strategy:
@@ -184,18 +184,35 @@ stages:
               helmVersionToInstall: 'latest'
 
           #=====================================================
-          # Deploy Helm Chart
+          # Validate Helm Chart
           #=====================================================
 
-          - task: HelmDeploy@0
-            displayName: 'Deploy Helm Chart'
+          - script: |
+              helm lint petclinic-chart
+            displayName: 'Helm Lint'
+
+          #=====================================================
+          # Render Helm Templates
+          #=====================================================
+
+          - script: |
+              helm template petclinic petclinic-chart
+            displayName: 'Helm Template'
+
+          #=====================================================
+          # Deploy using Kubernetes Manifests
+          #=====================================================
+
+          - task: KubernetesManifest@1
+            displayName: 'Deploy PetClinic Resources'
             inputs:
-              connectionType: 'Kubernetes Service Connection'
+              action: deploy
               kubernetesServiceConnection: 'aks-kubernetes-connection'
               namespace: 'petclinic'
-              command: 'upgrade'
-              chartType: 'FilePath'
-              chartPath: 'petclinic-chart'
-              releaseName: 'petclinic'
-              install: true
-              waitForExecution: true
+              manifests: |
+                k8s/configmap.yaml
+                k8s/secret.yaml
+                k8s/db.yml
+                k8s/deployment.yaml
+                k8s/service.yaml
+                k8s/ingress.yaml
