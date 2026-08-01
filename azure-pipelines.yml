@@ -235,17 +235,28 @@ stages:
 
     steps:
 
+    #=====================================================
     # Checkout Source
+    #=====================================================
+
     - checkout: self
 
     #=====================================================
     # Install Terraform
     #=====================================================
 
-    - task: TerraformInstaller@1
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip
+
+        wget https://releases.hashicorp.com/terraform/1.13.2/terraform_1.13.2_linux_amd64.zip
+
+        unzip terraform_1.13.2_linux_amd64.zip
+
+        sudo mv terraform /usr/local/bin/
+
+        terraform version
       displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: 'latest'
 
     #=====================================================
     # Terraform Init
@@ -266,8 +277,7 @@ stages:
       displayName: 'Terraform Validate'
 
     #=====================================================
-    # Terraform Plan
-    # Uncomment after configuring Azure Service Connection
+    # Terraform Plan (Enable after Azure authentication)
     #=====================================================
 
     # - script: |
@@ -276,12 +286,11 @@ stages:
     #   displayName: 'Terraform Plan'
 
     #=====================================================
-    # Terraform Apply
-    # Uncomment only after importing existing resources
-    # or when using a new Azure subscription.
+    # Terraform Apply (Enable only for new Azure subscription
+    # or after importing existing resources)
     #=====================================================
 
     # - script: |
     #     cd terraform
     #     terraform apply -auto-approve
-    #   displayName: 'Terraform Apply'                
+    #   displayName: 'Terraform Apply'
