@@ -7,236 +7,27 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-- group: SONAR-CONFIG
-
-- name: JAVA_VERSION
-  value: '21'
-
-- name: imageRepository
-  value: 'spring-petclinic'
-
-- name: dockerfilePath
-  value: 'Dockerfile'
-
-- name: imageTag
-  value: '$(Build.BuildId)'
+- name: terraformWorkingDirectory
+  value: 'terraform'
 
 stages:
 
 #=====================================================
-# Stage 1 - Build & Scan
-#=====================================================
-
-- stage: Build
-  displayName: 'Build and Scan'
-
-  jobs:
-  - job: Build
-    displayName: 'Build Job'
-
-    steps:
-
-    # Checkout Source
-    - checkout: self
-
-    # Install Java
-    - task: JavaToolInstaller@0
-      displayName: 'Install Java 21'
-      inputs:
-        versionSpec: '$(JAVA_VERSION)'
-        jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'PreInstalled'
-
-    #=====================================================
-    # SonarCloud (Temporarily Disabled)
-    #=====================================================
-
-    # - task: SonarCloudPrepare@3
-    #   displayName: 'Prepare SonarCloud Analysis'
-    #   inputs:
-    #     SonarCloud: 'new-connection'
-    #     organization: '$(SONAR_ORG)'
-    #     scannerMode: 'other'
-    #     extraProperties: |
-    #       sonar.projectKey=$(SONAR_PROJECT)
-    #       sonar.organization=$(SONAR_ORG)
-
-    # Build & Test
-    - task: Maven@4
-      displayName: 'Build and Test'
-      inputs:
-        mavenPomFile: 'pom.xml'
-        goals: 'clean verify'
-        publishJUnitResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '1.21'
-        mavenVersionOption: 'Default'
-
-    # - task: SonarCloudPublish@3
-    #   displayName: 'Publish SonarCloud Quality Gate'
-    #   inputs:
-    #     pollingTimeoutSec: '300'
-
-    #=====================================================
-    # Publish Build Artifact
-    #=====================================================
-
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Build Artifact'
-      inputs:
-        PathtoPublish: 'target'
-        ArtifactName: 'petclinic'
-        publishLocation: 'Container'
-
-    #=====================================================
-    # Build Docker Image
-    #=====================================================
-
-    - task: Docker@2
-      displayName: 'Build Docker Image'
-      inputs:
-        command: build
-        containerRegistry: 'acr-docker-connection'
-        repository: '$(imageRepository)'
-        Dockerfile: '$(dockerfilePath)'
-        tags: |
-          $(imageTag)
-          latest
-
-    #=====================================================
-    # Install Trivy
-    #=====================================================
-
-    - script: |
-        sudo apt-get update
-        sudo apt-get install -y wget
-        wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-        trivy --version
-      displayName: 'Install Trivy'
-
-    #=====================================================
-    # Save Docker Image
-    #=====================================================
-
-    - script: |
-        IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
-
-        echo "Image: $IMAGE_NAME"
-
-        docker save "$IMAGE_NAME" -o spring-petclinic.tar
-      displayName: 'Save Docker Image'
-
-    #=====================================================
-    # Scan Docker Image
-    #=====================================================
-
-    - script: |
-        trivy image \
-          --input spring-petclinic.tar \
-          --exit-code 0 \
-          --severity HIGH,CRITICAL
-      displayName: 'Scan Docker Image'
-
-    #=====================================================
-    # Push Docker Image
-    #=====================================================
-
-    - task: Docker@2
-      displayName: 'Push Docker Image'
-      inputs:
-        command: push
-        containerRegistry: 'acr-docker-connection'
-        repository: '$(imageRepository)'
-        tags: |
-          $(imageTag)
-          latest
-
-#=====================================================
-# Stage 2 - Validate Helm & Deploy to AKS
-#=====================================================
-
-- stage: Deploy
-  displayName: 'Validate Helm and Deploy to AKS'
-  dependsOn: Build
-  condition: succeeded()
-
-  jobs:
-
-  - deployment: DeployAKS
-    displayName: 'Deploy PetClinic'
-    environment: 'aks'
-
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - checkout: self
-
-          #=====================================================
-          # Install Helm
-          #=====================================================
-
-          - task: HelmInstaller@1
-            displayName: 'Install Helm'
-            inputs:
-              helmVersionToInstall: 'latest'
-
-          #=====================================================
-          # Validate Helm Chart
-          #=====================================================
-
-          - script: |
-              helm lint petclinic-chart
-            displayName: 'Helm Lint'
-
-          #=====================================================
-          # Render Helm Templates
-          #=====================================================
-
-          - script: |
-              helm template petclinic petclinic-chart
-            displayName: 'Helm Template'
-
-          #=====================================================
-          # Deploy using Kubernetes Manifests
-          #=====================================================
-
-          - task: KubernetesManifest@1
-            displayName: 'Deploy PetClinic Resources'
-            inputs:
-              action: deploy
-              kubernetesServiceConnection: 'aks-kubernetes-connection'
-              namespace: 'petclinic'
-              manifests: |
-                k8s/configmap.yaml
-                k8s/secret.yaml
-                k8s/db.yml
-                k8s/deployment.yaml
-                k8s/service.yaml
-                k8s/ingress.yaml
-#=====================================================
-# Stage 3 - Terraform Validation
+# Stage 1 - Terraform Validation
 #=====================================================
 
 - stage: Terraform
   displayName: 'Terraform Validation'
-  dependsOn: Deploy
-  condition: succeeded()
 
   jobs:
 
   - job: TerraformValidation
     displayName: 'Terraform Init and Validate'
 
-    pool:
-      vmImage: 'ubuntu-latest'
-
     steps:
 
     #=====================================================
-    # Checkout Source
+    # Checkout Repository
     #=====================================================
 
     - checkout: self
@@ -246,24 +37,38 @@ stages:
     #=====================================================
 
     - script: |
+        set -e
+
         sudo apt-get update
-        sudo apt-get install -y wget unzip
+        sudo apt-get install -y wget gnupg software-properties-common
 
-        wget https://releases.hashicorp.com/terraform/1.13.2/terraform_1.13.2_linux_amd64.zip
+        wget -qO- https://apt.releases.hashicorp.com/gpg | \
+          sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 
-        unzip terraform_1.13.2_linux_amd64.zip
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+          sudo tee /etc/apt/sources.list.d/hashicorp.list
 
-        sudo mv terraform /usr/local/bin/
+        sudo apt-get update
+        sudo apt-get install -y terraform
 
         terraform version
       displayName: 'Install Terraform'
+
+    #=====================================================
+    # Terraform Format Check
+    #=====================================================
+
+    - script: |
+        cd $(terraformWorkingDirectory)
+        terraform fmt -check
+      displayName: 'Terraform Format'
 
     #=====================================================
     # Terraform Init
     #=====================================================
 
     - script: |
-        cd terraform
+        cd $(terraformWorkingDirectory)
         terraform init
       displayName: 'Terraform Init'
 
@@ -272,25 +77,37 @@ stages:
     #=====================================================
 
     - script: |
-        cd terraform
+        cd $(terraformWorkingDirectory)
         terraform validate
       displayName: 'Terraform Validate'
 
     #=====================================================
-    # Terraform Plan (Enable after Azure authentication)
+    # Terraform Plan
+    # Enable after Azure Service Connection is configured
     #=====================================================
 
-    # - script: |
-    #     cd terraform
-    #     terraform plan
+    # - task: AzureCLI@2
     #   displayName: 'Terraform Plan'
+    #   inputs:
+    #     azureSubscription: 'YOUR-AZURE-SERVICE-CONNECTION'
+    #     scriptType: bash
+    #     scriptLocation: inlineScript
+    #     inlineScript: |
+    #       cd $(terraformWorkingDirectory)
+    #       terraform init
+    #       terraform plan
 
     #=====================================================
-    # Terraform Apply (Enable only for new Azure subscription
-    # or after importing existing resources)
+    # Terraform Apply
+    # Enable only after importing existing resources
     #=====================================================
 
-    # - script: |
-    #     cd terraform
-    #     terraform apply -auto-approve
+    # - task: AzureCLI@2
     #   displayName: 'Terraform Apply'
+    #   inputs:
+    #     azureSubscription: 'YOUR-AZURE-SERVICE-CONNECTION'
+    #     scriptType: bash
+    #     scriptLocation: inlineScript
+    #     inlineScript: |
+    #       cd $(terraformWorkingDirectory)
+    #       terraform apply -auto-approve
