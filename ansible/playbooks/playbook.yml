@@ -1,0 +1,11 @@
+---
+- hosts: devops
+  become: yes
+
+  roles:
+    - git
+    - java
+    - docker
+    - kubectl
+    - helm
+    - azurecli

@@ -1,0 +1,15 @@
+---
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+
+- name: Start Docker
+  service:
+    name: docker
+    state: started
+
+- name: Enable Docker
+  service:
+    name: docker
+    enabled: yes
