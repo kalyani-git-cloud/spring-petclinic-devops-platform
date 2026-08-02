@@ -1,0 +1,67 @@
+trigger:
+  branches:
+    include:
+      - feature/ansible
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+#=====================================================
+# Stage 1 - Ansible Validation
+#=====================================================
+
+- stage: Ansible
+  displayName: 'Ansible Playbook Validation'
+
+  jobs:
+
+  - job: ValidateAnsible
+    displayName: 'Validate Ansible Playbook'
+
+    steps:
+
+    #=====================================================
+    # Checkout Repository
+    #=====================================================
+
+    - checkout: self
+
+    #=====================================================
+    # Install Ansible
+    #=====================================================
+
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y ansible
+        ansible --version
+      displayName: 'Install Ansible'
+
+    #=====================================================
+    # Validate Inventory
+    #=====================================================
+
+    - script: |
+        cd ansible
+        cat inventory/inventory.ini
+      displayName: 'Validate Inventory'
+
+    #=====================================================
+    # Validate Playbook Syntax
+    #=====================================================
+
+    - script: |
+        cd ansible
+        ansible-playbook --syntax-check playbooks/playbook.yml
+      displayName: 'Validate Playbook Syntax'
+
+    #=====================================================
+    # Lint Playbook (Optional)
+    #=====================================================
+
+    # - script: |
+    #     sudo apt-get install -y ansible-lint
+    #     cd ansible
+    #     ansible-lint playbooks/playbook.yml
+    #   displayName: 'Ansible Lint'
