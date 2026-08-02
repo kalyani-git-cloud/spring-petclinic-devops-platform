@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+
+  - job_name: 'prometheus'
+
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  # Spring PetClinic Metrics
+  # Uncomment after the application exposes Prometheus metrics
+  #
+  # - job_name: 'spring-petclinic'
+  #
+  #   metrics_path: /actuator/prometheus
+  #
+  #   static_configs:
+  #     - targets:
+  #         - <APPLICATION-IP>:8080
+
+  # Kubernetes Metrics
+  # Configure after AKS monitoring is enabled
+  #
+  # - job_name: 'kubernetes'
+  #
+  #   kubernetes_sd_configs:
+  #     - role: node

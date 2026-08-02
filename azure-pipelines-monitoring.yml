@@ -1,0 +1,55 @@
+trigger:
+  branches:
+    include:
+      - feature/monitoring
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+#=====================================================
+# Stage 1 - Monitoring Validation
+#=====================================================
+
+- stage: Monitoring
+  displayName: 'Monitoring Validation'
+
+  jobs:
+
+  - job: ValidateMonitoring
+    displayName: 'Validate Monitoring Configuration'
+
+    steps:
+
+    # Checkout Repository
+    - checkout: self
+
+    # Verify Prometheus Configuration
+    - script: |
+        echo "Checking Prometheus configuration..."
+
+        test -f monitoring/prometheus/prometheus.yml
+
+        echo "Prometheus configuration found."
+      displayName: 'Validate Prometheus Config'
+
+    # Verify Grafana Configuration
+    - script: |
+        echo "Checking Grafana configuration..."
+
+        test -f monitoring/grafana/datasource.yml
+
+        echo "Grafana datasource configuration found."
+      displayName: 'Validate Grafana Config'
+
+    # Display Configuration Files
+    - script: |
+        echo "Prometheus Configuration"
+        cat monitoring/prometheus/prometheus.yml
+
+        echo ""
+
+        echo "Grafana Datasource"
+        cat monitoring/grafana/datasource.yml
+      displayName: 'Display Configuration'
