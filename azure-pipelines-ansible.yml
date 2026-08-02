@@ -71,7 +71,6 @@ stages:
 
         ansible-playbook \
           -i inventory/inventory.ini \
-          --roles-path roles \
           --syntax-check \
           playbooks/playbook.yml
       displayName: 'Validate Playbook Syntax'
