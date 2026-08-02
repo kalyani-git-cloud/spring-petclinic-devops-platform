@@ -9,7 +9,7 @@ pool:
 stages:
 
 #=====================================================
-# Stage 1 - Ansible Validation
+# Stage 1 - Ansible Playbook Validation
 #=====================================================
 
 - stage: Ansible
@@ -17,7 +17,7 @@ stages:
 
   jobs:
 
-  - job: ValidateAnsible
+  - job: ValidatePlaybook
     displayName: 'Validate Ansible Playbook'
 
     steps:
@@ -35,16 +35,29 @@ stages:
     - script: |
         sudo apt-get update
         sudo apt-get install -y ansible
+
+        echo "Ansible Version:"
         ansible --version
       displayName: 'Install Ansible'
+
+    #=====================================================
+    # Verify Folder Structure
+    #=====================================================
+
+    - script: |
+        echo "Repository Structure"
+        pwd
+        ls -la
+        ls -la ansible
+        ls -la ansible/roles
+      displayName: 'Verify Repository Structure'
 
     #=====================================================
     # Validate Inventory
     #=====================================================
 
     - script: |
-        cd ansible
-        cat inventory/inventory.ini
+        cat ansible/inventory/inventory.ini
       displayName: 'Validate Inventory'
 
     #=====================================================
@@ -53,15 +66,12 @@ stages:
 
     - script: |
         cd ansible
-        ansible-playbook --syntax-check playbooks/playbook.yml
+
+        export ANSIBLE_CONFIG=ansible.cfg
+
+        ansible-playbook \
+          -i inventory/inventory.ini \
+          --roles-path roles \
+          --syntax-check \
+          playbooks/playbook.yml
       displayName: 'Validate Playbook Syntax'
-
-    #=====================================================
-    # Lint Playbook (Optional)
-    #=====================================================
-
-    # - script: |
-    #     sudo apt-get install -y ansible-lint
-    #     cd ansible
-    #     ansible-lint playbooks/playbook.yml
-    #   displayName: 'Ansible Lint'
