@@ -1,0 +1,76 @@
+trigger:
+  branches:
+    include:
+      - feature/ansible
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+#=====================================================
+# Stage 1 - Ansible Playbook Validation
+#=====================================================
+
+- stage: Ansible
+  displayName: 'Ansible Playbook Validation'
+
+  jobs:
+
+  - job: ValidatePlaybook
+    displayName: 'Validate Ansible Playbook'
+
+    steps:
+
+    #=====================================================
+    # Checkout Repository
+    #=====================================================
+
+    - checkout: self
+
+    #=====================================================
+    # Install Ansible
+    #=====================================================
+
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y ansible
+
+        echo "Ansible Version:"
+        ansible --version
+      displayName: 'Install Ansible'
+
+    #=====================================================
+    # Verify Folder Structure
+    #=====================================================
+
+    - script: |
+        echo "Repository Structure"
+        pwd
+        ls -la
+        ls -la ansible
+        ls -la ansible/roles
+      displayName: 'Verify Repository Structure'
+
+    #=====================================================
+    # Validate Inventory
+    #=====================================================
+
+    - script: |
+        cat ansible/inventory/inventory.ini
+      displayName: 'Validate Inventory'
+
+    #=====================================================
+    # Validate Playbook Syntax
+    #=====================================================
+
+    - script: |
+        cd ansible
+
+        export ANSIBLE_CONFIG=ansible.cfg
+
+        ansible-playbook \
+          -i inventory/inventory.ini \
+          --syntax-check \
+          playbooks/playbook.yml
+      displayName: 'Validate Playbook Syntax'
