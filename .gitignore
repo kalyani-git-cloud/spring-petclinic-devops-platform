@@ -46,3 +46,13 @@ out/
 _site/
 *.css
 !petclinic.css
+
+# Azure DevOps PAT (local secrets)
+/scripts/azdo/.azdo_pat
+
+# GitHub PAT (local secrets)
+/scripts/azdo/.github_pat
+
+# Azure DevOps environment variables (local)
+/scripts/azdo/.azdo_env
+

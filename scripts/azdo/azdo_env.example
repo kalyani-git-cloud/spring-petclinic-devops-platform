@@ -1,0 +1,8 @@
+## Example Azure DevOps env file
+# Copy to .azdo_env and fill values, or let create-project.sh populate it.
+
+AZDO_ORG_URL=https://dev.azure.com/your-org/
+AZDO_PROJECT=MyProject
+AZDO_PROJECT_ID=00000000-0000-0000-0000-000000000000
+AZDO_REPO=your-repo-name
+AZDO_BRANCH=main
