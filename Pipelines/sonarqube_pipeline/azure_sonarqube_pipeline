@@ -1,0 +1,125 @@
+trigger:
+  branches:
+    include:
+      - feature/sonarqube
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: SONAR-CONFIG
+
+- name: JAVA_VERSION
+  value: '21'
+
+- name: imageRepository
+  value: 'spring-petclinic'
+
+- name: dockerfilePath
+  value: 'Dockerfile'
+
+- name: imageTag
+  value: '$(Build.BuildId)'
+
+steps:
+
+# Step 1 - Checkout Source Code
+- checkout: self
+
+# Step 2 - Install Java 21
+- task: JavaToolInstaller@0
+  displayName: 'Install Java 21'
+  inputs:
+    versionSpec: '$(JAVA_VERSION)'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+# Step 3 - Prepare SonarCloud Analysis
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare SonarCloud Analysis'
+  inputs:
+    SonarCloud: 'new-connection'
+    organization: '$(SONAR_ORG)'
+    scannerMode: 'other'
+    extraProperties: |
+      sonar.projectKey=$(SONAR_PROJECT)
+      sonar.organization=$(SONAR_ORG)
+
+# Step 4 - Build, Test and Analyze
+- task: Maven@4
+  displayName: 'Build, Test and Analyze'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.21'
+    mavenVersionOption: 'Default'
+
+# Step 5 - Publish SonarCloud Quality Gate
+- task: SonarCloudPublish@3
+  displayName: 'Publish SonarCloud Quality Gate'
+  inputs:
+    pollingTimeoutSec: '300'
+
+# Step 6 - Publish Build Artifact
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Build Artifact'
+  inputs:
+    PathtoPublish: 'target'
+    ArtifactName: 'petclinic'
+    publishLocation: 'Container'
+
+# Step 7 - Build Docker Image
+- task: Docker@2
+  displayName: 'Build Docker Image'
+  inputs:
+    command: build
+    containerRegistry: 'acr-docker-connection'
+    repository: '$(imageRepository)'
+    Dockerfile: '$(dockerfilePath)'
+    tags: |
+      $(imageTag)
+      latest
+
+# Step 8 - Install Trivy
+- script: |
+    sudo apt-get update
+    sudo apt-get install -y wget
+    wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+    trivy --version
+  displayName: 'Install Trivy'
+
+# Step 9 - Save Docker Image
+- script: |
+    echo "Available Images:"
+    docker images
+
+    IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
+
+    echo "Detected Image: $IMAGE_NAME"
+
+    docker save "$IMAGE_NAME" -o spring-petclinic.tar
+
+    ls -lh spring-petclinic.tar
+  displayName: 'Save Docker Image'
+
+# Step 10 - Scan Docker Image
+- script: |
+    trivy image \
+      --input spring-petclinic.tar \
+      --exit-code 0 \
+      --severity HIGH,CRITICAL
+  displayName: 'Scan Docker Image'
+
+# Step 11 - Push Docker Image
+- task: Docker@2
+  displayName: 'Push Docker Image'
+  inputs:
+    command: push
+    containerRegistry: 'acr-docker-connection'
+    repository: '$(imageRepository)'
+    tags: |
+      $(imageTag)
+      latest
