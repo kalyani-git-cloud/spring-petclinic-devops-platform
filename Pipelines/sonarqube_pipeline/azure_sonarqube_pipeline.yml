@@ -14,10 +14,10 @@ variables:
 
 steps:
 
-# Step 1 - Checkout the source code
+# Checkout Source Code
 - checkout: self
 
-# Step 2 - Install Java 21
+# Install Java 21
 - task: JavaToolInstaller@0
   displayName: 'Install Java 21'
   inputs:
@@ -25,7 +25,7 @@ steps:
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
 
-# Step 3 - Prepare SonarCloud Analysis
+# Prepare SonarCloud Analysis
 - task: SonarCloudPrepare@3
   displayName: 'Prepare SonarCloud Analysis'
   inputs:
@@ -36,32 +36,36 @@ steps:
       sonar.projectKey=$(SONAR_PROJECT)
       sonar.organization=$(SONAR_ORG)
 
-# Step 4 - Build, Test and Analyze
+# Build and Test
 - task: Maven@4
-  displayName: 'Build, Test and Analyze'
+  displayName: 'Build and Test'
   inputs:
     mavenPomFile: 'pom.xml'
-    goals: 'clean verify sonar:sonar'
+    goals: 'clean verify'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     javaHomeOption: 'JDKVersion'
     jdkVersionOption: '1.21'
     mavenVersionOption: 'Default'
 
-# Step 5 - Publish SonarCloud Quality Gate
+# Run SonarCloud Analysis
+- task: SonarCloudAnalyze@3
+  displayName: 'Run SonarCloud Analysis'
+
+# Publish Quality Gate
 - task: SonarCloudPublish@3
   displayName: 'Publish Quality Gate Result'
   inputs:
     pollingTimeoutSec: '300'
 
-# Step 6 - Mend Dependency Security Scan
+# Mend Security Scan
 - task: WhiteSource@21
   displayName: 'Mend Dependency Security Scan'
   inputs:
     cwd: '$(System.DefaultWorkingDirectory)'
     projectName: 'spring-petclinic-devops'
 
-# Step 7 - Publish Build Artifact
+# Publish Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
