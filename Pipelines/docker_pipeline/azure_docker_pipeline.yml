@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - feature/sonarqube
+      - feature/centralized-logging
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -23,10 +23,10 @@ variables:
 
 steps:
 
-# Step 1 - Checkout the source code
+# Checkout source
 - checkout: self
 
-# Step 2 - Install Java 21
+# Install Java 21
 - task: JavaToolInstaller@0
   displayName: 'Install Java 21'
   inputs:
@@ -34,7 +34,7 @@ steps:
     jdkArchitectureOption: 'x64'
     jdkSourceOption: 'PreInstalled'
 
-# Step 3 - Prepare SonarCloud Analysis
+# Prepare SonarCloud
 - task: SonarCloudPrepare@3
   displayName: 'Prepare SonarCloud Analysis'
   inputs:
@@ -45,7 +45,7 @@ steps:
       sonar.projectKey=$(SONAR_PROJECT)
       sonar.organization=$(SONAR_ORG)
 
-# Step 4 - Build, Test and Analyze
+# Build + Test + Sonar Analysis
 - task: Maven@4
   displayName: 'Build, Test and Analyze'
   inputs:
@@ -57,20 +57,13 @@ steps:
     jdkVersionOption: '1.21'
     mavenVersionOption: 'Default'
 
-# Step 5 - Publish SonarCloud Quality Gate
-- task: SonarCloudPublish@3
-  displayName: 'Publish SonarCloud Quality Gate'
-  inputs:
-    pollingTimeoutSec: '300'
-
-# Step 6 - Mend Dependency Security Scan
-#- task: WhiteSource@21
-#  displayName: 'Mend Dependency Security Scan'
+# Publish Quality Gate
+#- task: SonarCloudPublish@3
+#  displayName: 'Publish SonarCloud Quality Gate'
 #  inputs:
-#    cwd: '$(System.DefaultWorkingDirectory)'
-#    projectName: 'spring-petclinic-devops'
+#    pollingTimeoutSec: '300'
 
-# Step 7 - Publish Build Artifact
+# Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
@@ -78,11 +71,11 @@ steps:
     ArtifactName: 'petclinic'
     publishLocation: 'Container'
 
-# Step 8 - Build and Push Docker Image
+# Build and Push Docker Image
 - task: Docker@2
-  displayName: Build and Push Docker Image
+  displayName: 'Build and Push Docker Image'
   inputs:
-    command: buildAndPush
+    command: 'buildAndPush'
     containerRegistry: 'acr-docker-connection'
     repository: '$(imageRepository)'
     Dockerfile: '$(dockerfilePath)'
