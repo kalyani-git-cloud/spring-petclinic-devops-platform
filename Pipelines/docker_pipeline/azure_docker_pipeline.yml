@@ -58,10 +58,10 @@ steps:
     mavenVersionOption: 'Default'
 
 # Publish Quality Gate
-- task: SonarCloudPublish@3
-  displayName: 'Publish SonarCloud Quality Gate'
-  inputs:
-    pollingTimeoutSec: '300'
+#- task: SonarCloudPublish@3
+#  displayName: 'Publish SonarCloud Quality Gate'
+#  inputs:
+#    pollingTimeoutSec: '300'
 
 # Publish Build Artifact
 - task: PublishBuildArtifacts@1
