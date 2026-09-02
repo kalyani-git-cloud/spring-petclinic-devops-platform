@@ -23,7 +23,7 @@ variables:
 
 steps:
 
-# Step 1 - Checkout Source Code
+# Step 1 - Checkout the source code
 - checkout: self
 
 # Step 2 - Install Java 21
@@ -63,7 +63,14 @@ steps:
   inputs:
     pollingTimeoutSec: '300'
 
-# Step 6 - Publish Build Artifact
+# Step 6 - Mend Dependency Security Scan
+#- task: WhiteSource@21
+#  displayName: 'Mend Dependency Security Scan'
+#  inputs:
+#    cwd: '$(System.DefaultWorkingDirectory)'
+#    projectName: 'spring-petclinic-devops'
+
+# Step 7 - Publish Build Artifact
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifact'
   inputs:
@@ -71,55 +78,14 @@ steps:
     ArtifactName: 'petclinic'
     publishLocation: 'Container'
 
-# Step 7 - Build Docker Image
+# Step 8 - Build and Push Docker Image
 - task: Docker@2
-  displayName: 'Build Docker Image'
+  displayName: Build and Push Docker Image
   inputs:
-    command: build
+    command: buildAndPush
     containerRegistry: 'acr-docker-connection'
     repository: '$(imageRepository)'
     Dockerfile: '$(dockerfilePath)'
-    tags: |
-      $(imageTag)
-      latest
-
-# Step 8 - Install Trivy
-- script: |
-    sudo apt-get update
-    sudo apt-get install -y wget
-    wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-    trivy --version
-  displayName: 'Install Trivy'
-
-# Step 9 - Save Docker Image
-- script: |
-    echo "Available Images:"
-    docker images
-
-    IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
-
-    echo "Detected Image: $IMAGE_NAME"
-
-    docker save "$IMAGE_NAME" -o spring-petclinic.tar
-
-    ls -lh spring-petclinic.tar
-  displayName: 'Save Docker Image'
-
-# Step 10 - Scan Docker Image
-- script: |
-    trivy image \
-      --input spring-petclinic.tar \
-      --exit-code 0 \
-      --severity HIGH,CRITICAL
-  displayName: 'Scan Docker Image'
-
-# Step 11 - Push Docker Image
-- task: Docker@2
-  displayName: 'Push Docker Image'
-  inputs:
-    command: push
-    containerRegistry: 'acr-docker-connection'
-    repository: '$(imageRepository)'
     tags: |
       $(imageTag)
       latest
