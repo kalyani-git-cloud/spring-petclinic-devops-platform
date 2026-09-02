@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - feature/sonarqube
+      - feature/centralized-logging
 
 pool:
   vmImage: 'ubuntu-latest'
