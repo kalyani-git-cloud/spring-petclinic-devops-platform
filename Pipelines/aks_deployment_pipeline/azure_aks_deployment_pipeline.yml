@@ -1,0 +1,169 @@
+trigger:
+  branches:
+    include:
+      - feature/centralized-logging
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: SONAR-CONFIG
+
+- name: JAVA_VERSION
+  value: '21'
+
+- name: imageRepository
+  value: 'spring-petclinic'
+
+- name: dockerfilePath
+  value: 'Dockerfile'
+
+- name: imageTag
+  value: '$(Build.BuildId)'
+
+stages:
+
+#=====================================================
+# Stage 1 - Build & Scan
+#=====================================================
+
+- stage: Build
+  displayName: 'Build and Scan'
+
+  jobs:
+  - job: Build
+    displayName: 'Build Job'
+
+    steps:
+
+    # Checkout Source
+    - checkout: self
+
+    # Install Java
+    - task: JavaToolInstaller@0
+      displayName: 'Install Java 21'
+      inputs:
+        versionSpec: '$(JAVA_VERSION)'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+
+    # SonarCloud (Temporarily Disabled)
+    # - task: SonarCloudPrepare@3
+    #   displayName: 'Prepare SonarCloud Analysis'
+    #   inputs:
+    #     SonarCloud: 'new-connection'
+    #     organization: '$(SONAR_ORG)'
+    #     scannerMode: 'other'
+    #     extraProperties: |
+    #       sonar.projectKey=$(SONAR_PROJECT)
+    #       sonar.organization=$(SONAR_ORG)
+
+    # Build and Test
+    - task: Maven@4
+      displayName: 'Build and Test'
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'clean verify'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.21'
+        mavenVersionOption: 'Default'
+
+    # SonarCloud Publish (Temporarily Disabled)
+    # - task: SonarCloudPublish@3
+    #   displayName: 'Publish SonarCloud Quality Gate'
+    #   inputs:
+    #     pollingTimeoutSec: '300'
+
+    # Publish Build Artifact
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifact'
+      inputs:
+        PathtoPublish: 'target'
+        ArtifactName: 'petclinic'
+        publishLocation: 'Container'
+
+    # Build Docker Image
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: build
+        containerRegistry: 'acr-docker-connection'
+        repository: '$(imageRepository)'
+        Dockerfile: '$(dockerfilePath)'
+        tags: |
+          $(imageTag)
+          latest
+
+    # Install Trivy
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y wget
+        wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+        trivy --version
+      displayName: 'Install Trivy'
+
+    # Save Docker Image
+    - script: |
+        IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
+
+        echo "Image: $IMAGE_NAME"
+
+        docker save "$IMAGE_NAME" -o spring-petclinic.tar
+      displayName: 'Save Docker Image'
+
+    # Scan Docker Image
+    - script: |
+        trivy image \
+          --input spring-petclinic.tar \
+          --exit-code 0 \
+          --severity HIGH,CRITICAL
+      displayName: 'Scan Docker Image'
+
+    # Push Docker Image
+    - task: Docker@2
+      displayName: 'Push Docker Image'
+      inputs:
+        command: push
+        containerRegistry: 'acr-docker-connection'
+        repository: '$(imageRepository)'
+        tags: |
+          $(imageTag)
+          latest
+
+#=====================================================
+# Stage 2 - Deploy to AKS
+#=====================================================
+
+- stage: Deploy
+  displayName: 'Deploy to AKS'
+  dependsOn: Build
+  condition: succeeded()
+
+  jobs:
+  - deployment: DeployAKS
+    displayName: 'Deploy PetClinic'
+    environment: 'aks'
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          # Deploy Application
+          - task: KubernetesManifest@1
+            displayName: 'Deploy PetClinic Resources'
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: petclinic
+              manifests: |
+                k8s/configmap.yaml
+                k8s/secret.yaml
+                k8s/db.yml
+                k8s/deployment.yaml
+                k8s/service.yaml
+                k8s/ingress.yaml
