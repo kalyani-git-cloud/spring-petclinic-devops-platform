@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - feature/centralized-logging
+      - develop
 
 pool:
   vmImage: 'ubuntu-latest'
