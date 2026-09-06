@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: petclinic
-        image: acrkalyani.azurecr.io/spring-petclinic:latest
+        image: containeregistery.azurecr.io/spring-petclinic:latest
         imagePullPolicy: Always
 
         ports:
