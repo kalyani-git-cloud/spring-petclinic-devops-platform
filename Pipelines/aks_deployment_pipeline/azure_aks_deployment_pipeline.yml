@@ -4,7 +4,7 @@ trigger:
       - feature/centralized-logging
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: ubuntu-latest
 
 variables:
 - group: SONAR-CONFIG
@@ -15,83 +15,88 @@ variables:
 - name: imageRepository
   value: 'spring-petclinic'
 
-- name: dockerfilePath
-  value: 'Dockerfile'
-
 - name: imageTag
   value: '$(Build.BuildId)'
 
+- name: acrName
+  value: 'acrkalyani.azurecr.io'
+
+# =====================================================
+# BUILD STAGE
+# =====================================================
+
 stages:
 
-#=====================================================
-# Stage 1 - Build & Scan
-#=====================================================
-
 - stage: Build
-  displayName: 'Build and Scan'
+  displayName: Build and Scan
 
   jobs:
-  - job: Build
-    displayName: 'Build Job'
+  - job: BuildJob
+    displayName: Build Job
 
     steps:
 
-    # Checkout Source
     - checkout: self
 
     # Install Java
     - task: JavaToolInstaller@0
-      displayName: 'Install Java 21'
       inputs:
         versionSpec: '$(JAVA_VERSION)'
-        jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'PreInstalled'
+        jdkArchitectureOption: x64
+        jdkSourceOption: PreInstalled
 
-    # SonarCloud (Temporarily Disabled)
-    # - task: SonarCloudPrepare@3
-    #   displayName: 'Prepare SonarCloud Analysis'
-    #   inputs:
-    #     SonarCloud: 'new-connection'
-    #     organization: '$(SONAR_ORG)'
-    #     scannerMode: 'other'
-    #     extraProperties: |
-    #       sonar.projectKey=$(SONAR_PROJECT)
-    #       sonar.organization=$(SONAR_ORG)
-
-    # Build and Test
-    - task: Maven@4
-      displayName: 'Build and Test'
+    # SonarCloud Prepare
+    - task: SonarCloudPrepare@3
+      displayName: Prepare SonarCloud
       inputs:
-        mavenPomFile: 'pom.xml'
-        goals: 'clean verify'
+        SonarCloud: 'new-connection'
+        organization: '$(SONAR_ORG)'
+        scannerMode: 'other'
+        extraProperties: |
+          sonar.projectKey=$(SONAR_PROJECT)
+          sonar.organization=$(SONAR_ORG)
+
+    # Maven Build
+    - task: Maven@4
+      displayName: Build and Test
+      inputs:
+        mavenPomFile: pom.xml
+        goals: clean verify
         publishJUnitResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        javaHomeOption: 'JDKVersion'
+        javaHomeOption: JDKVersion
         jdkVersionOption: '1.21'
-        mavenVersionOption: 'Default'
 
-    # SonarCloud Publish (Temporarily Disabled)
-    # - task: SonarCloudPublish@3
-    #   displayName: 'Publish SonarCloud Quality Gate'
-    #   inputs:
-    #     pollingTimeoutSec: '300'
-
-    # Publish Build Artifact
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Build Artifact'
+    # Sonar Publish
+    - task: SonarCloudPublish@3
+      displayName: Publish Quality Gate
       inputs:
-        PathtoPublish: 'target'
-        ArtifactName: 'petclinic'
-        publishLocation: 'Container'
+        pollingTimeoutSec: '300'
 
-    # Build Docker Image
+    # OWASP Dependency Check
+    - script: |
+        docker run --rm \
+          -v $(System.DefaultWorkingDirectory):/src \
+          owasp/dependency-check \
+          --scan /src \
+          --format HTML \
+          --out /src/reports
+      displayName: OWASP Dependency Check
+
+    # Publish OWASP Report
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: reports
+        ArtifactName: dependency-check-report
+
+    # Docker Build
     - task: Docker@2
-      displayName: 'Build Docker Image'
+      displayName: Build Docker Image
       inputs:
         command: build
         containerRegistry: 'acr-docker-connection'
         repository: '$(imageRepository)'
-        Dockerfile: '$(dockerfilePath)'
+        Dockerfile: Dockerfile
         tags: |
           $(imageTag)
           latest
@@ -102,28 +107,20 @@ stages:
         sudo apt-get install -y wget
         wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
         trivy --version
-      displayName: 'Install Trivy'
+      displayName: Install Trivy
 
-    # Save Docker Image
-    - script: |
-        IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
-
-        echo "Image: $IMAGE_NAME"
-
-        docker save "$IMAGE_NAME" -o spring-petclinic.tar
-      displayName: 'Save Docker Image'
-
-    # Scan Docker Image
+    # Trivy Scan
     - script: |
         trivy image \
-          --input spring-petclinic.tar \
-          --exit-code 0 \
-          --severity HIGH,CRITICAL
-      displayName: 'Scan Docker Image'
+          --severity HIGH,CRITICAL \
+          --exit-code 1 \
+          --format table \
+          $(acrName)/$(imageRepository):$(imageTag)
+      displayName: Trivy Security Scan
 
     # Push Docker Image
     - task: Docker@2
-      displayName: 'Push Docker Image'
+      displayName: Push Docker Image
       inputs:
         command: push
         containerRegistry: 'acr-docker-connection'
@@ -132,19 +129,20 @@ stages:
           $(imageTag)
           latest
 
-#=====================================================
-# Stage 2 - Deploy to AKS
-#=====================================================
+# =====================================================
+# DEPLOY STAGE
+# =====================================================
 
 - stage: Deploy
-  displayName: 'Deploy to AKS'
+  displayName: Deploy to AKS
   dependsOn: Build
   condition: succeeded()
 
   jobs:
+
   - deployment: DeployAKS
-    displayName: 'Deploy PetClinic'
-    environment: 'aks'
+    displayName: Deploy PetClinic
+    environment: dev
 
     strategy:
       runOnce:
@@ -153,12 +151,17 @@ stages:
 
           - checkout: self
 
-          # Deploy Application
+          # Replace image tag dynamically
+          - script: |
+              sed -i "s|IMAGE_TAG|$(imageTag)|g" k8s/deployment.yaml
+            displayName: Update Image Tag
+
+          # Deploy manifests
           - task: KubernetesManifest@1
-            displayName: 'Deploy PetClinic Resources'
+            displayName: Deploy to AKS
             inputs:
               action: deploy
-              kubernetesServiceConnection: 'aks-connection'
+              kubernetesServiceConnection: aks-connection
               namespace: petclinic
               manifests: |
                 k8s/configmap.yaml
@@ -167,3 +170,44 @@ stages:
                 k8s/deployment.yaml
                 k8s/service.yaml
                 k8s/ingress.yaml
+
+          # Verify Rollout
+          - task: Kubernetes@1
+            displayName: Verify Rollout
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceEndpoint: aks-connection
+              namespace: petclinic
+              command: rollout
+              arguments: status deployment/petclinic --timeout=300s
+
+          # Get Service Details
+          - task: Kubernetes@1
+            displayName: Get Services
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceEndpoint: aks-connection
+              namespace: petclinic
+              command: get
+              arguments: svc
+
+          # Debug on Failure
+          - task: Kubernetes@1
+            displayName: Describe Pod
+            condition: failed()
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceEndpoint: aks-connection
+              namespace: petclinic
+              command: get
+              arguments: pods -o wide
+
+          - task: Kubernetes@1
+            displayName: Get Events
+            condition: failed()
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceEndpoint: aks-connection
+              namespace: petclinic
+              command: get
+              arguments: events --sort-by=.metadata.creationTimestamp
