@@ -133,7 +133,7 @@ stages:
             displayName: 'Deploy PetClinic Resources'
             inputs:
               action: 'deploy'
-              kubernetesServiceConnection: 'aks-connection'
+              kubernetesServiceConnection: 'aks-petclinic-aks-petclinic-1788435921244'
               namespace: 'petclinic'
 
               manifests: |
