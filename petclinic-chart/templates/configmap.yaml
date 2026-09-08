@@ -6,5 +6,5 @@ metadata:
   namespace: {{ .Values.namespace }}
 
 data:
-  SPRING_PROFILES_ACTIVE: {{ .Values.config.SPRING_PROFILES_ACTIVE }}
-  SPRING_DATASOURCE_URL: jdbc:postgresql://{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.config.SPRING_PROFILES_ACTIVE | quote }}
+  SPRING_DATASOURCE_URL: {{ .Values.database.url | quote }}

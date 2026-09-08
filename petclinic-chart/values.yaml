@@ -1,9 +1,9 @@
-replicaCount: 1
-
 namespace: petclinic
 
+replicaCount: 1
+
 image:
-  repository: acrkalyani.azurecr.io/spring-petclinic
+  repository: containeregistery.azurecr.io/spring-petclinic
   tag: latest
   pullPolicy: Always
 
@@ -12,18 +12,29 @@ service:
   port: 80
   targetPort: 8080
 
-database:
-  host: demo-db
-  port: 5432
-  name: petclinic
-
-  image:
-    repository: postgres
-    tag: "18.4"
+secret:
+  username: petclinic
+  password: petclinic
 
 config:
-  SPRING_PROFILES_ACTIVE: postgres
+  SPRING_PROFILES_ACTIVE: mysql
 
-secret:
-  username: postgres
-  password: postgres
+database:
+  image:
+    repository: mysql
+    tag: "8.0"
+
+  service:
+    port: 3306
+
+  containerPort: 3306
+
+  url: jdbc:mysql://demo-db:3306/petclinic
+
+  username: petclinic
+  password: petclinic
+  database: petclinic
+
+ingress:
+  enabled: true
+  className: nginx

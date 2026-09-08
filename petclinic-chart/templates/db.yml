@@ -6,16 +6,12 @@ metadata:
   name: demo-db
   namespace: {{ .Values.namespace }}
 
-type: servicebinding.io/postgresql
+type: Opaque
 
 stringData:
-  type: "postgresql"
-  provider: "postgresql"
-  host: "{{ .Values.database.host }}"
-  port: "{{ .Values.database.port }}"
-  database: "{{ .Values.database.name }}"
-  username: "{{ .Values.secret.username }}"
-  password: "{{ .Values.secret.password }}"
+  username: "{{ .Values.database.username }}"
+  password: "{{ .Values.database.password }}"
+  database: "{{ .Values.database.database }}"
 
 ---
 apiVersion: v1
@@ -27,7 +23,8 @@ metadata:
 
 spec:
   ports:
-    - port: {{ .Values.database.port }}
+    - port: 3306
+      targetPort: 3306
   selector:
     app: demo-db
 
@@ -55,40 +52,41 @@ spec:
 
     spec:
       containers:
-        - name: postgresql
+        - name: mysql
+
           image: "{{ .Values.database.image.repository }}:{{ .Values.database.image.tag }}"
 
           env:
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: demo-db
-                  key: username
+            - name: MYSQL_ROOT_PASSWORD
+              value: rootpassword
 
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: demo-db
-                  key: password
-
-            - name: POSTGRES_DB
+            - name: MYSQL_DATABASE
               valueFrom:
                 secretKeyRef:
                   name: demo-db
                   key: database
 
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: username
+
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: password
+
           ports:
-            - containerPort: {{ .Values.database.port }}
-              name: postgresql
+            - containerPort: 3306
 
           livenessProbe:
             tcpSocket:
-              port: postgresql
+              port: 3306
+            initialDelaySeconds: 30
 
           readinessProbe:
             tcpSocket:
-              port: postgresql
-
-          startupProbe:
-            tcpSocket:
-              port: postgresql
+              port: 3306
+            initialDelaySeconds: 15

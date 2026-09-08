@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: petclinic
+  name: {{ .Release.Name }}
   namespace: {{ .Values.namespace }}
   labels:
     app: petclinic
@@ -21,52 +21,49 @@ spec:
 
     spec:
       containers:
-        - name: petclinic
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+      - name: petclinic
 
-          ports:
-            - containerPort: {{ .Values.service.targetPort }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              valueFrom:
-                configMapKeyRef:
-                  name: petclinic-config
-                  key: SPRING_PROFILES_ACTIVE
+        ports:
+        - containerPort: 8080
 
-            - name: SPRING_DATASOURCE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: petclinic-config
-                  key: SPRING_DATASOURCE_URL
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_PROFILES_ACTIVE
 
-            - name: SPRING_DATASOURCE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: petclinic-secret
-                  key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_DATASOURCE_URL
 
-            - name: SPRING_DATASOURCE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: petclinic-secret
-                  key: SPRING_DATASOURCE_PASSWORD
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_USERNAME
 
-          readinessProbe:
-            httpGet:
-              path: /actuator/health
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_PASSWORD
 
-          livenessProbe:
-            httpGet:
-              path: /actuator/health
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10

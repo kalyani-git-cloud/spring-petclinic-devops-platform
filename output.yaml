@@ -1,0 +1,232 @@
+---
+# Source: petclinic/templates/db.yml
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: demo-db
+  namespace: petclinic
+
+type: servicebinding.io/postgresql
+
+stringData:
+  type: "postgresql"
+  provider: "postgresql"
+  host: ""
+  port: ""
+  database: ""
+  username: "petclinic"
+  password: "petclinic"
+---
+# Source: petclinic/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: petclinic-secret
+  namespace: petclinic
+
+type: Opaque
+
+stringData:
+  SPRING_DATASOURCE_USERNAME: petclinic
+  SPRING_DATASOURCE_PASSWORD: petclinic
+---
+# Source: petclinic/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: petclinic-config
+  namespace: petclinic
+
+data:
+  SPRING_PROFILES_ACTIVE: mysql
+  SPRING_DATASOURCE_URL: jdbc:postgresql://:/
+---
+# Source: petclinic/templates/db.yml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: demo-db
+  namespace: petclinic
+
+spec:
+  ports:
+    - port: 
+  selector:
+    app: demo-db
+---
+# Source: petclinic/templates/service.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: petclinic
+  namespace: petclinic
+
+spec:
+  type: LoadBalancer
+
+  selector:
+    app: petclinic
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+# Source: petclinic/templates/db.yml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: demo-db
+  namespace: petclinic
+  labels:
+    app: demo-db
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: demo-db
+
+  template:
+    metadata:
+      labels:
+        app: demo-db
+
+    spec:
+      containers:
+        - name: postgresql
+          image: "mysql:8.0"
+
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: username
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: password
+
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: database
+
+          ports:
+            - containerPort: 
+              name: postgresql
+
+          livenessProbe:
+            tcpSocket:
+              port: postgresql
+
+          readinessProbe:
+            tcpSocket:
+              port: postgresql
+
+          startupProbe:
+            tcpSocket:
+              port: postgresql
+---
+# Source: petclinic/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: petclinic
+  namespace: petclinic
+  labels:
+    app: petclinic
+
+spec:
+  replicas: 
+
+  selector:
+    matchLabels:
+      app: petclinic
+
+  template:
+    metadata:
+      labels:
+        app: petclinic
+
+    spec:
+      containers:
+      - name: petclinic
+
+        image: "containeregistery.azurecr.io/spring-petclinic:latest"
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8080
+
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_PROFILES_ACTIVE
+
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: petclinic-config
+              key: SPRING_DATASOURCE_URL
+
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_USERNAME
+
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: petclinic-secret
+              key: SPRING_DATASOURCE_PASSWORD
+
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+---
+# Source: petclinic/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: petclinic-ingress
+  namespace: petclinic
+
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+
+            backend:
+              service:
+                name: petclinic
+                port:
+                  number: 80
