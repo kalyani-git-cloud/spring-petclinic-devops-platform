@@ -160,7 +160,7 @@ stages:
             displayName: 'Deploy Helm Chart'
             inputs:
               connectionType: 'Kubernetes Service Connection'
-              kubernetesServiceConnection: 'aks-connection'
+              kubernetesServiceConnection: 'aks-petclinic-aks-petclinic-1788435921244'
               namespace: 'petclinic'
               command: 'upgrade'
               chartType: 'FilePath'
