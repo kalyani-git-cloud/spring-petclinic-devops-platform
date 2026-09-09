@@ -1,51 +1,36 @@
 trigger:
   branches:
     include:
-      - develop
-
+    - feature/centralized-logging
 pool:
   vmImage: 'ubuntu-latest'
-
 variables:
 - group: SONAR-CONFIG
-
 - name: JAVA_VERSION
   value: '21'
-
 - name: imageRepository
   value: 'spring-petclinic'
-
 - name: dockerfilePath
   value: 'Dockerfile'
-
 - name: imageTag
   value: '$(Build.BuildId)'
-
-# =====================================================
-# Stage 1 - Build, Scan & Push
-# =====================================================
-
 stages:
-
 - stage: Build
   displayName: 'Build and Scan'
-
   jobs:
   - job: Build
     displayName: 'Build Job'
-
     steps:
-
-    - checkout: self
-      fetchDepth: 0
-
+    - task: 6d15af64-176c-496d-b583-fd2ae21d4df4@1
+      inputs:
+        repository: self
+        fetchDepth: 0
     - task: JavaToolInstaller@0
       displayName: 'Install Java 21'
       inputs:
         versionSpec: '$(JAVA_VERSION)'
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
-
     - task: Maven@4
       displayName: 'Build and Test'
       inputs:
@@ -56,14 +41,12 @@ stages:
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '1.21'
         mavenVersionOption: 'Default'
-
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifact'
       inputs:
         PathtoPublish: 'target'
         ArtifactName: 'petclinic'
         publishLocation: 'Container'
-
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
@@ -74,29 +57,31 @@ stages:
         tags: |
           $(imageTag)
           latest
-
-    - script: |
-        sudo apt-get update
-        sudo apt-get install -y wget
-        wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-        trivy --version
+    - task: CmdLine@2
       displayName: 'Install Trivy'
-
-    - script: |
-        IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
-
-        echo "Image: $IMAGE_NAME"
-
-        docker save "$IMAGE_NAME" -o spring-petclinic.tar
+      inputs:
+        script: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          trivy --version
+    - task: CmdLine@2
       displayName: 'Save Docker Image'
+      inputs:
+        script: |
+          IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep ":$(imageTag)$" | head -n 1)
 
-    - script: |
-        trivy image \
-          --input spring-petclinic.tar \
-          --exit-code 0 \
-          --severity HIGH,CRITICAL
+          echo "Image: $IMAGE_NAME"
+
+          docker save "$IMAGE_NAME" -o spring-petclinic.tar
+    - task: CmdLine@2
       displayName: 'Scan Docker Image'
-
+      inputs:
+        script: |
+          trivy image \
+            --input spring-petclinic.tar \
+            --exit-code 0 \
+            --severity HIGH,CRITICAL
     - task: Docker@2
       displayName: 'Push Docker Image'
       inputs:
@@ -106,36 +91,29 @@ stages:
         tags: |
           $(imageTag)
           latest
-
-# =====================================================
-# Stage 2 - Deploy to AKS
-# =====================================================
-
 - stage: Deploy
   displayName: 'Deploy to AKS'
-  dependsOn: Build
+  dependsOn:
+  - Build
   condition: succeeded()
-
   jobs:
   - deployment: DeployAKS
     displayName: 'Deploy PetClinic'
-
-    environment: 'aks'
-
+    environment:
+      name: 'aks'
     strategy:
       runOnce:
         deploy:
           steps:
-
-          - checkout: self
-
+          - task: 6d15af64-176c-496d-b583-fd2ae21d4df4@1
+            inputs:
+              repository: self
           - task: KubernetesManifest@1
             displayName: 'Deploy PetClinic Resources'
             inputs:
               action: 'deploy'
               kubernetesServiceConnection: 'aks-connection'
               namespace: 'petclinic'
-
               manifests: |
                 k8s/configmap.yaml
                 k8s/secret.yaml
@@ -143,6 +121,5 @@ stages:
                 k8s/deployment.yaml
                 k8s/service.yaml
                 k8s/ingress.yaml
-
-              containers: |
+              containers: |-
                 containeregistery.azurecr.io/spring-petclinic:$(Build.BuildId)
