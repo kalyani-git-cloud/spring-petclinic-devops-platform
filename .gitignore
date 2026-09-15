@@ -56,3 +56,10 @@ _site/
 # Azure DevOps environment variables (local)
 /scripts/azdo/.azdo_env
 
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+crash.log
+

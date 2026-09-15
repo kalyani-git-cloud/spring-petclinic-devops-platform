@@ -23,9 +23,8 @@ output "virtual_network_name" {
 #=========================================
 
 output "subnet_name" {
-  description = "Subnet Name"
+  value = azurerm_subnet.aks_subnet.name
 
-  value = azurerm_subnet.subnet.name
 }
 
 #=========================================

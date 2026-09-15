@@ -1,0 +1,145 @@
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- name: terraformWorkingDirectory
+  value: 'terraform'
+
+stages:
+
+#=====================================================
+# Stage 1 - Terraform Validation & Plan
+#=====================================================
+
+- stage: TerraformPlan
+  displayName: 'Terraform Validation and Plan'
+
+  jobs:
+
+  - job: TerraformValidation
+    displayName: 'Terraform Init Validate Plan'
+
+    steps:
+
+    - checkout: self
+
+    #=====================================================
+    # Install Terraform
+    #=====================================================
+
+    - script: |
+        wget -O- https://apt.releases.hashicorp.com/gpg | \
+        gpg --dearmor | \
+        sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+        sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+        sudo apt-get update
+        sudo apt-get install -y terraform
+
+        terraform version
+      displayName: 'Install Terraform'
+
+    #=====================================================
+    # Terraform Format
+    #=====================================================
+
+    - script: |
+        cd $(terraformWorkingDirectory)
+        terraform fmt -check
+      displayName: 'Terraform Format Check'
+
+    #=====================================================
+    # Terraform Init
+    #=====================================================
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Init'
+      inputs:
+        azureSubscription: 'project-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd $(terraformWorkingDirectory)
+
+          terraform init
+
+    #=====================================================
+    # Terraform Validate
+    #=====================================================
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Validate'
+      inputs:
+        azureSubscription: 'project-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd $(terraformWorkingDirectory)
+
+          terraform validate
+
+    #=====================================================
+    # Terraform Plan
+    #=====================================================
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Plan'
+      inputs:
+        azureSubscription: 'project-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd $(terraformWorkingDirectory)
+
+          terraform plan \
+          -var-file="terraform.tfvars"
+
+#=====================================================
+# Stage 2 - Terraform Apply
+#=====================================================
+
+- stage: TerraformApply
+  displayName: 'Terraform Apply'
+
+  dependsOn: TerraformPlan
+  condition: succeeded()
+
+  jobs:
+
+  - job: TerraformApply
+    displayName: 'Terraform Infrastructure Deployment'
+
+    steps:
+
+    - checkout: self
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Init'
+      inputs:
+        azureSubscription: 'project-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd $(terraformWorkingDirectory)
+
+          terraform init
+
+    - task: AzureCLI@2
+      displayName: 'Terraform Apply'
+      inputs:
+        azureSubscription: 'project-connection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd $(terraformWorkingDirectory)
+
+          terraform apply \
+          -var-file="terraform.tfvars" \
+          -auto-approve

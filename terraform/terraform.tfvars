@@ -1,11 +1,11 @@
-resource_group_name = "DevOps-Project-DO-NOT-DELETE"
+resource_group_name = "rg-petclinic-devops-tf"
 
-location = "Japan East"
+location = "East US"
 
-vnet_name = "kalyani-vm1-vnet"
+vnet_name = "petclinic-vnet-tf"
 
-subnet_name = "default"
+subnet_name = "petclinic-subnet-tf"
 
-aks_name = "petclinic-aks"
+aks_name = "petclinic-aks-tf"
 
-acr_name = "acrkalyani"
+acr_name = "petclinicacrtf"
