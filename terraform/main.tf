@@ -56,8 +56,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   dns_prefix = "petclinic"
 
-  kubernetes_version = "1.33"
-
   default_node_pool {
     name           = "system"
     node_count     = 1
