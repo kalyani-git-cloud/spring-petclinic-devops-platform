@@ -7,8 +7,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-- name: terraformWorkingDirectory
-  value: 'terraform'
+  terraformWorkingDirectory: 'terraform'
 
 stages:
 
@@ -28,37 +27,24 @@ stages:
 
     - checkout: self
 
-    #=====================================================
     # Install Terraform
-    #=====================================================
-
-    - script: |
-        wget -O- https://apt.releases.hashicorp.com/gpg | \
-        gpg --dearmor | \
-        sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
-
-        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-        sudo tee /etc/apt/sources.list.d/hashicorp.list
-
-        sudo apt-get update
-        sudo apt-get install -y terraform
-
-        terraform version
+    - task: TerraformInstaller@1
       displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: 'latest'
 
-    #=====================================================
-    # Terraform Format
-    #=====================================================
+    # Verify Version
+    - script: |
+        terraform version
+      displayName: 'Verify Terraform Version'
 
+    # Format Check
     - script: |
         cd $(terraformWorkingDirectory)
         terraform fmt -check
-      displayName: 'Terraform Format Check'
+      displayName: 'Terraform Format'
 
-    #=====================================================
     # Terraform Init
-    #=====================================================
-
     - task: AzureCLI@2
       displayName: 'Terraform Init'
       inputs:
@@ -67,13 +53,9 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd $(terraformWorkingDirectory)
-
           terraform init
 
-    #=====================================================
     # Terraform Validate
-    #=====================================================
-
     - task: AzureCLI@2
       displayName: 'Terraform Validate'
       inputs:
@@ -82,13 +64,9 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd $(terraformWorkingDirectory)
-
           terraform validate
 
-    #=====================================================
     # Terraform Plan
-    #=====================================================
-
     - task: AzureCLI@2
       displayName: 'Terraform Plan'
       inputs:
@@ -99,7 +77,14 @@ stages:
           cd $(terraformWorkingDirectory)
 
           terraform plan \
-          -var-file="terraform.tfvars"
+          -var-file="terraform.tfvars" \
+          -out=tfplan
+
+    # Publish Plan
+    - publish: $(terraformWorkingDirectory)/tfplan
+      artifact: terraform-plan
+      displayName: 'Publish Terraform Plan'
+
 
 #=====================================================
 # Stage 2 - Terraform Apply
@@ -107,39 +92,55 @@ stages:
 
 - stage: TerraformApply
   displayName: 'Terraform Apply'
-
   dependsOn: TerraformPlan
   condition: succeeded()
 
   jobs:
 
-  - job: TerraformApply
+  - deployment: TerraformDeployment
     displayName: 'Terraform Infrastructure Deployment'
 
-    steps:
+    environment: terraform-dev
 
-    - checkout: self
+    strategy:
+      runOnce:
+        deploy:
 
-    - task: AzureCLI@2
-      displayName: 'Terraform Init'
-      inputs:
-        azureSubscription: 'project-connection'
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
-          cd $(terraformWorkingDirectory)
+          steps:
 
-          terraform init
+          - checkout: self
 
-    - task: AzureCLI@2
-      displayName: 'Terraform Apply'
-      inputs:
-        azureSubscription: 'project-connection'
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
-          cd $(terraformWorkingDirectory)
+          # IMPORTANT:
+          # Install Terraform AGAIN because this is a new job
 
-          terraform apply \
-          -var-file="terraform.tfvars" \
-          -auto-approve
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: 'latest'
+
+          - script: |
+              terraform version
+            displayName: 'Verify Terraform Version'
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init'
+            inputs:
+              azureSubscription: 'project-connection'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd $(terraformWorkingDirectory)
+                terraform init
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Apply'
+            inputs:
+              azureSubscription: 'project-connection'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd $(terraformWorkingDirectory)
+
+                terraform apply \
+                -auto-approve \
+                -var-file="terraform.tfvars"
