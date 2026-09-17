@@ -1,0 +1,48 @@
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: LoggingValidation
+  displayName: 'Centralized Logging Validation'
+
+  jobs:
+
+  - job: ValidateLogging
+    displayName: 'Validate Loki and Promtail'
+
+    steps:
+
+    - checkout: self
+
+    - script: |
+        echo "Repository Structure"
+        ls -R logging
+      displayName: 'Verify Logging Structure'
+
+    - script: |
+        test -f logging/loki/loki-config.yml
+
+        echo "Loki configuration found."
+      displayName: 'Validate Loki Config'
+
+    - script: |
+        test -f logging/promtail/promtail-config.yml
+
+        echo "Promtail configuration found."
+      displayName: 'Validate Promtail Config'
+
+    - script: |
+        echo "===== LOKI CONFIG ====="
+        cat logging/loki/loki-config.yml
+      displayName: 'Display Loki Config'
+
+    - script: |
+        echo "===== PROMTAIL CONFIG ====="
+        cat logging/promtail/promtail-config.yml
+      displayName: 'Display Promtail Config'
