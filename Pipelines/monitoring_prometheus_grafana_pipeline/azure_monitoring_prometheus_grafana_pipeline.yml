@@ -1,0 +1,90 @@
+trigger:
+  branches:
+    include:
+      - feature/monitoring
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+#=====================================================
+# Stage 1 - Monitoring Validation
+#=====================================================
+
+- stage: MonitoringValidation
+  displayName: 'Monitoring Validation'
+
+  jobs:
+
+  - job: ValidateMonitoring
+    displayName: 'Validate Monitoring Configuration'
+
+    steps:
+
+    #=====================================================
+    # Checkout Repository
+    #=====================================================
+
+    - checkout: self
+
+    #=====================================================
+    # Verify Repository Structure
+    #=====================================================
+
+    - script: |
+        echo "Current Directory:"
+        pwd
+
+        echo "Repository Structure:"
+        ls -R
+      displayName: 'Verify Repository Structure'
+
+    #=====================================================
+    # Validate Prometheus Config Exists
+    #=====================================================
+
+    - script: |
+        test -f monitoring/prometheus/prometheus.yml
+
+        echo "Prometheus configuration found."
+      displayName: 'Validate Prometheus Config'
+
+    #=====================================================
+    # Validate Grafana Config Exists
+    #=====================================================
+
+    - script: |
+        test -f monitoring/grafana/datasource.yml
+
+        echo "Grafana datasource configuration found."
+      displayName: 'Validate Grafana Config'
+
+    #=====================================================
+    # Display Prometheus Config
+    #=====================================================
+
+    - script: |
+        echo "===== PROMETHEUS CONFIG ====="
+        cat monitoring/prometheus/prometheus.yml
+      displayName: 'Display Prometheus Config'
+
+    #=====================================================
+    # Display Grafana Config
+    #=====================================================
+
+    - script: |
+        echo "===== GRAFANA DATASOURCE ====="
+        cat monitoring/grafana/datasource.yml
+      displayName: 'Display Grafana Config'
+
+    #=====================================================
+    # YAML Validation
+    #=====================================================
+
+    - script: |
+        python3 -c "import yaml; yaml.safe_load(open('monitoring/prometheus/prometheus.yml'))"
+        python3 -c "import yaml; yaml.safe_load(open('monitoring/grafana/datasource.yml'))"
+
+        echo "YAML validation successful."
+      displayName: 'Validate YAML Syntax'
