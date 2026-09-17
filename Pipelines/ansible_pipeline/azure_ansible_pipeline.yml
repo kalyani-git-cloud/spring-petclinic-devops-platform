@@ -1,0 +1,113 @@
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+#=====================================================
+# Stage 1 - Ansible Validation
+#=====================================================
+
+- stage: AnsibleValidation
+  displayName: 'Ansible Playbook Validation'
+
+  jobs:
+
+  - job: ValidatePlaybook
+    displayName: 'Validate Ansible Configuration'
+
+    steps:
+
+    #=====================================================
+    # Checkout Code
+    #=====================================================
+
+    - checkout: self
+
+    #=====================================================
+    # Install Ansible
+    #=====================================================
+
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y ansible
+
+        echo "===== Ansible Version ====="
+        ansible --version
+        ansible-playbook --version
+      displayName: 'Install Ansible'
+
+    #=====================================================
+    # Verify Repository Structure
+    #=====================================================
+
+    - script: |
+        echo "===== Current Directory ====="
+        pwd
+
+        echo "===== Repository Structure ====="
+        ls -la
+
+        echo "===== Ansible Folder ====="
+        ls -la ansible
+
+        echo "===== Inventory Folder ====="
+        ls -la ansible/inventory
+
+        echo "===== Playbooks Folder ====="
+        ls -la ansible/playbooks
+
+        echo "===== Roles Folder ====="
+        ls -la ansible/roles
+      displayName: 'Verify Repository Structure'
+
+    #=====================================================
+    # Verify ansible.cfg
+    #=====================================================
+
+    - script: |
+        echo "===== ansible.cfg ====="
+        cat ansible/ansible.cfg
+      displayName: 'Verify Ansible Configuration'
+
+    #=====================================================
+    # Validate Inventory
+    #=====================================================
+
+    - script: |
+        cd ansible
+
+        export ANSIBLE_CONFIG=ansible.cfg
+
+        ansible-inventory \
+          -i inventory/inventory.ini \
+          --list
+      displayName: 'Validate Inventory'
+
+    #=====================================================
+    # Validate Playbook Syntax
+    #=====================================================
+
+    - script: |
+        cd ansible
+
+        export ANSIBLE_CONFIG=ansible.cfg
+
+        ansible-playbook \
+          -i inventory/inventory.ini \
+          --syntax-check \
+          playbooks/playbook.yml
+      displayName: 'Validate Playbook Syntax'
+
+    #=====================================================
+    # Verify Roles
+    #=====================================================
+
+    - script: |
+        echo "===== Available Roles ====="
+        find ansible/roles -type d
+      displayName: 'Verify Role Structure'
