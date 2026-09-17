@@ -90,57 +90,57 @@ stages:
 # Stage 2 - Terraform Apply
 #=====================================================
 
-- stage: TerraformApply
-  displayName: 'Terraform Apply'
-  dependsOn: TerraformPlan
-  condition: succeeded()
+#- stage: TerraformApply
+#  displayName: 'Terraform Apply'
+#  dependsOn: TerraformPlan
+#  condition: succeeded()
 
-  jobs:
+#  jobs:
 
-  - deployment: TerraformDeployment
-    displayName: 'Terraform Infrastructure Deployment'
+#  - deployment: TerraformDeployment
+#    displayName: 'Terraform Infrastructure Deployment'
 
-    environment: terraform-dev
+#    environment: terraform-dev
 
-    strategy:
-      runOnce:
-        deploy:
+#    strategy:
+#      runOnce:
+#        deploy:
 
-          steps:
+#          steps:
 
-          - checkout: self
+#          - checkout: self
 
           # IMPORTANT:
           # Install Terraform AGAIN because this is a new job
 
-          - task: TerraformInstaller@1
-            displayName: 'Install Terraform'
-            inputs:
-              terraformVersion: 'latest'
+#          - task: TerraformInstaller@1
+#            displayName: 'Install Terraform'
+#            inputs:
+#              terraformVersion: 'latest'
 
-          - script: |
-              terraform version
-            displayName: 'Verify Terraform Version'
+#          - script: |
+#              terraform version
+#            displayName: 'Verify Terraform Version'
 
-          - task: AzureCLI@2
-            displayName: 'Terraform Init'
-            inputs:
-              azureSubscription: 'project-connection'
-              scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
-                cd $(terraformWorkingDirectory)
-                terraform init
+#         - task: AzureCLI@2
+#            displayName: 'Terraform Init'
+#            inputs:
+#              azureSubscription: 'project-connection'
+#              scriptType: bash
+#              scriptLocation: inlineScript
+#              inlineScript: |
+#                cd $(terraformWorkingDirectory)
+#                terraform init
+#
+#          - task: AzureCLI@2
+#            displayName: 'Terraform Apply'
+#            inputs:
+#              azureSubscription: 'project-connection'
+#             scriptType: bash
+#              scriptLocation: inlineScript
+#              inlineScript: |
+#                cd $(terraformWorkingDirectory)
 
-          - task: AzureCLI@2
-            displayName: 'Terraform Apply'
-            inputs:
-              azureSubscription: 'project-connection'
-              scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
-                cd $(terraformWorkingDirectory)
-
-                terraform apply \
-                -auto-approve \
-                -var-file="terraform.tfvars"
+#                terraform apply \
+#                -auto-approve \
+#                -var-file="terraform.tfvars"
