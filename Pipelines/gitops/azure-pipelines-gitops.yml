@@ -1,0 +1,32 @@
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: GitOpsValidation
+  displayName: 'Validate GitOps Configuration'
+
+  jobs:
+
+  - job: ValidateArgoCD
+
+    steps:
+
+    - checkout: self
+
+    - script: |
+        echo "Checking ArgoCD configuration..."
+
+        test -f gitops/application.yaml
+
+        echo "ArgoCD application file exists"
+      displayName: 'Validate Application Manifest'
+
+    - script: |
+        cat gitops/application.yaml
+      displayName: 'Display Application Manifest'
