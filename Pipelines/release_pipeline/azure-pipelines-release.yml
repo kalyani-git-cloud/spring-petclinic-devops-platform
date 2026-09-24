@@ -35,11 +35,11 @@ stages:
             inputs:
               connectionType: Kubernetes Service Connection
               kubernetesServiceConnection: aks-connection
-              namespace: petclinic
+              namespace: dev
               command: upgrade
               chartType: FilePath
               chartPath: petclinic-chart
-              releaseName: petclinic-dev
+              releaseName: petclinic
               install: true
 
 # ==========================================
@@ -70,11 +70,11 @@ stages:
             inputs:
               connectionType: Kubernetes Service Connection
               kubernetesServiceConnection: aks-connection
-              namespace: petclinic
+              namespace: qa
               command: upgrade
               chartType: FilePath
               chartPath: petclinic-chart
-              releaseName: petclinic-qa
+              releaseName: petclinic
               install: true
 
 # ==========================================
@@ -105,9 +105,9 @@ stages:
             inputs:
               connectionType: Kubernetes Service Connection
               kubernetesServiceConnection: aks-connection
-              namespace: petclinic
+              namespace: prod
               command: upgrade
               chartType: FilePath
               chartPath: petclinic-chart
-              releaseName: petclinic-prod
+              releaseName: petclinic
               install: true
