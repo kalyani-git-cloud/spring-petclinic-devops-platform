@@ -34,7 +34,7 @@ stages:
             displayName: Helm Deploy DEV
             inputs:
               connectionType: Kubernetes Service Connection
-              kubernetesServiceConnection: aks-service-connection
+              kubernetesServiceConnection: aks-connection
               namespace: default
               command: upgrade
               chartType: FilePath
@@ -69,7 +69,7 @@ stages:
             displayName: Helm Deploy QA
             inputs:
               connectionType: Kubernetes Service Connection
-              kubernetesServiceConnection: aks-service-connection
+              kubernetesServiceConnection: aks-connection
               namespace: default
               command: upgrade
               chartType: FilePath
@@ -104,7 +104,7 @@ stages:
             displayName: Helm Deploy PROD
             inputs:
               connectionType: Kubernetes Service Connection
-              kubernetesServiceConnection: aks-service-connection
+              kubernetesServiceConnection: aks-connection
               namespace: default
               command: upgrade
               chartType: FilePath
