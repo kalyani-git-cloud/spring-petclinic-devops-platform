@@ -3,8 +3,8 @@ kind: ConfigMap
 
 metadata:
   name: petclinic-config
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
 
 data:
-  SPRING_PROFILES_ACTIVE: {{ .Values.config.SPRING_PROFILES_ACTIVE | quote }}
-  SPRING_DATASOURCE_URL: {{ .Values.database.url | quote }}
+  SPRING_PROFILES_ACTIVE: mysql
+  SPRING_DATASOURCE_URL: jdbc:mysql://demo-db:3306/petclinic

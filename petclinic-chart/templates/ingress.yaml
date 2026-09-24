@@ -3,7 +3,7 @@ kind: Ingress
 
 metadata:
   name: petclinic-ingress
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
 
 spec:
   rules:

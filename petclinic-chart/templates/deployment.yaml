@@ -3,7 +3,7 @@ kind: Deployment
 
 metadata:
   name: {{ .Release.Name }}
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
   labels:
     app: petclinic
 
