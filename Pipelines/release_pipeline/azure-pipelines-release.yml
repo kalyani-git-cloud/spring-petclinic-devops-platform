@@ -1,0 +1,113 @@
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# ==========================================
+# DEV
+# ==========================================
+- stage: Dev
+  displayName: Deploy to Dev
+
+  jobs:
+  - deployment: DeployDev
+    displayName: Deploy to Dev Environment
+    environment: dev
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: latest
+
+          - task: HelmDeploy@0
+            displayName: Helm Deploy DEV
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceConnection: aks-service-connection
+              namespace: default
+              command: upgrade
+              chartType: FilePath
+              chartPath: petclinic-chart
+              releaseName: petclinic
+              install: true
+
+# ==========================================
+# QA
+# ==========================================
+- stage: QA
+  displayName: Deploy to QA
+  dependsOn: Dev
+
+  jobs:
+  - deployment: DeployQA
+    displayName: Deploy to QA Environment
+    environment: qa
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: latest
+
+          - task: HelmDeploy@0
+            displayName: Helm Deploy QA
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceConnection: aks-service-connection
+              namespace: default
+              command: upgrade
+              chartType: FilePath
+              chartPath: petclinic-chart
+              releaseName: petclinic
+              install: true
+
+# ==========================================
+# PROD
+# ==========================================
+- stage: Prod
+  displayName: Deploy to Production
+  dependsOn: QA
+
+  jobs:
+  - deployment: DeployProd
+    displayName: Deploy to Production Environment
+    environment: prod
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: latest
+
+          - task: HelmDeploy@0
+            displayName: Helm Deploy PROD
+            inputs:
+              connectionType: Kubernetes Service Connection
+              kubernetesServiceConnection: aks-service-connection
+              namespace: default
+              command: upgrade
+              chartType: FilePath
+              chartPath: petclinic-chart
+              releaseName: petclinic
+              install: true
